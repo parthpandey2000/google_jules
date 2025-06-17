@@ -1,0 +1,63 @@
+{
+    "name": "Pyspark_ETL_Orchestrator",
+    "properties": {
+        "activities": [
+            {
+                "name": "Run_PySpark_ETL",
+                "type": "DatabricksSparkPython",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "pythonFile": "dbfs:/PLEASE_UPDATE/pyspark_etl_template/pipeline.py",
+                    "parameters": [
+                        "--config_file",
+                        "@pipeline().parameters.config_file_path"
+                    ],
+                    "libraries": [
+                        {
+                            "pypi": { "package": "PyYAML>=5.0" }
+                        }
+                        // If your project (pyspark_etl_template) is packaged as a wheel and uploaded to DBFS:
+                        // { "whl": "dbfs:/path/to/your_project_wheel.whl" }
+                        // Or if it's available as individual .py files in a known DBFS/ADLS path accessible
+                        // to Databricks, ensure that path is part of PYTHONPATH or `pythonFile` points correctly
+                        // and other modules are discoverable.
+                    ],
+                    "newClusterSettings": {
+                        "clusterSize": "1", // Example: Single node cluster
+                        "nodeType": "Standard_DS3_v2", // General purpose node
+                        "sparkVersion": "13.3.x-scala2.12", // Or your target Databricks runtime
+                        "autoscale": { // Optional: autoscale settings
+                            "minWorkers": 1,
+                            "maxWorkers": 2
+                        },
+                        "enableElasticDisk": true,
+                        "sparkConf": {},
+                        "initScripts": [] // Optional: paths to init scripts in DBFS
+                    }
+                },
+                "linkedServiceName": {
+                    "referenceName": "AzureDatabricks_LinkedService_Placeholder",
+                    "type": "LinkedServiceReference"
+                }
+            }
+        ],
+        "parameters": {
+            "config_file_path": {
+                "type": "string",
+                "defaultValue": "dbfs:/PLEASE_UPDATE/configs/your_specific_config.yaml"
+            }
+        },
+        "annotations": [],
+        "folder": {
+            "name": "ETL Pipelines"
+        }
+    }
+}

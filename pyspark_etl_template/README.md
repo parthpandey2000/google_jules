@@ -39,6 +39,7 @@ pyspark_etl_template/
 │   ├── test_source_reader.py
 │   ├── test_target_writer.py
 │   └── test_transformer.py
+├── adf_databricks_etl_orchestrator.json # ADF Pipeline template
 ├── __init__.py
 ├── pipeline.py             # Main executable script for the ETL pipeline
 ├── README.md               # This file
@@ -51,6 +52,7 @@ pyspark_etl_template/
 *   `target/target_writer.py`: Writes the transformed data to the specified target.
 *   `utils/data_quality.py`: Provides functions for data quality checks and data profiling.
 *   `tests/`: Contains unit tests for the modules.
+*   `adf_databricks_etl_orchestrator.json`: An Azure Data Factory pipeline template for orchestrating this PySpark job.
 *   `pipeline.py`: The main script that orchestrates the ETL process.
 *   `requirements.txt`: Lists necessary Python libraries.
 
@@ -226,6 +228,37 @@ Unit tests are provided in the `pyspark_etl_template/tests/` directory. To run t
     python -m unittest discover -s pyspark_etl_template/tests -p 'test_*.py'
     ```
     Refer to `pyspark_etl_template/tests/README.md` for more details.
+
+## Orchestrating with Azure Data Factory
+
+The file `adf_databricks_etl_orchestrator.json` in this directory provides a template for running the PySpark ETL pipeline using Azure Data Factory (ADF).
+
+### How to Use
+
+1.  **Import to ADF:** Import the `adf_databricks_etl_orchestrator.json` file into your Azure Data Factory instance. This can typically be done via the ADF UI ("Import pipeline from JSON" under "Factory Resources" -> "Pipelines") or programmatically as part of a CI/CD process.
+2.  **Update Placeholders:** After importing, you **must** update the following placeholders within the ADF pipeline definition:
+    *   In the "Run_PySpark_ETL" activity (type `DatabricksSparkPython`):
+        *   `linkedServiceName.referenceName`: Change `"AzureDatabricks_LinkedService_Placeholder"` to the name of your actual Azure Databricks Linked Service in ADF.
+        *   `typeProperties.pythonFile`: Modify `"dbfs:/PLEASE_UPDATE/pyspark_etl_template/pipeline.py"` to the correct DBFS or ADLS Gen2 path where your `pipeline.py` script will be located and accessible by Databricks.
+    *   In the "Parameters" tab of the ADF pipeline:
+        *   `config_file_path` (defaultValue): Update `"dbfs:/PLEASE_UPDATE/configs/your_specific_config.yaml"` to the default path of your `config.yaml` file in DBFS/ADLS, or ensure this parameter is provided dynamically when the ADF pipeline is triggered.
+3.  **Customize Cluster:** The `newClusterSettings` within the Databricks activity can be customized (e.g., `nodeType`, `clusterSize`, `sparkVersion`, `autoscale` settings) to optimize for performance and cost based on your workload.
+
+### Pipeline Parameter
+
+*   The ADF pipeline includes a parameter `config_file_path`. This allows you to dynamically specify which YAML configuration file the PySpark script should use for a particular pipeline run. This is useful for managing different configurations for various environments (dev, test, prod) or different ETL tasks without modifying the ADF pipeline definition itself.
+
+### Deployment of ETL Scripts and Config
+
+*   Ensure that the entire `pyspark_etl_template` directory (or at least `pipeline.py` and all its imported modules from `source`, `transformation`, `target`, `utils`) and your specific `config.yaml` file are deployed to a location accessible by the Databricks cluster. This is typically DBFS (Databricks File System) or an ADLS Gen2 storage account mounted to your Databricks workspace. The paths specified in the ADF pipeline (`pythonFile` and `config_file_path`) must point to these locations.
+
+### Libraries
+
+*   The ADF pipeline template specifies `PyYAML>=5.0` in the `typeProperties.libraries` section of the Databricks activity. This ensures the library for parsing the YAML configuration is installed on the job cluster.
+*   If your custom transformations or other parts of the ETL logic require additional Python libraries not included in the standard Databricks runtime or `requirements.txt`, you may need to:
+    *   Add them to the `libraries` section in the ADF activity properties.
+    *   Install them on the Databricks cluster directly.
+    *   Package your `pyspark_etl_template` project as a Python wheel (including all dependencies) and specify the wheel's DBFS path in the `libraries` section.
 
 ## Extending the Template
 
