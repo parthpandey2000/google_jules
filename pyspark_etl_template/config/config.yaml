@@ -1,0 +1,54 @@
+# This is a sample configuration file for the PySpark ETL template.
+# It defines the source, transformations, and target for the ETL pipeline.
+
+source:
+  type: databricks_catalog # Type of the data source. Examples: databricks_catalog, adls, s3, etc.
+  details: # Connection details for the source
+    catalog_name: <catalog_name> # Name of the catalog in Databricks
+    schema_name: <schema_name>   # Name of the schema in Databricks
+    table_name: <table_name>     # Name of the table in Databricks
+  data_quality_checks: # List of data quality checks to perform on the source data
+    - check_type: not_null # Checks for null values in specified columns
+      columns: [<column1>, <column2>] # List of columns to check for nulls
+    - check_type: unique # Checks for unique values in specified columns
+      columns: [<column1>] # List of columns to check for uniqueness
+    - check_type: data_type # Checks the data type of specified columns
+      columns:
+        <column1>: <expected_type> # Column name and its expected data type
+        <column2>: <expected_type>
+    - check_type: custom_sql # Custom SQL check
+      sql_expression: <your_sql_expression> # SQL expression to evaluate (e.g., "value > 0")
+      error_message: <custom_error_message> # Error message to display if the check fails
+  profiling: # Configuration for data profiling on the source data
+    enabled: true # Enable or disable profiling
+    columns: [<column1>, <column2>] # Optional: List of columns to profile. If not provided, all columns are profiled.
+
+transformations: # List of transformations to apply to the data
+  - transformation_type: select_columns # Selects specified columns
+    columns: [<column1>, <column2>] # List of columns to select
+  - transformation_type: rename_columns # Renames specified columns
+    rename_map: # Mapping of old column names to new column names
+      <old_name1>: <new_name1>
+      <old_name2>: <new_name2>
+  - transformation_type: add_column # Adds a new column based on a Spark SQL expression
+    column_name: <new_column_name> # Name of the new column
+    column_expression: <spark_sql_expression> # Spark SQL expression to define the new column (e.g., "col1 * col2")
+  - transformation_type: custom_sql # Applies a custom Spark SQL query
+    sql: <your_spark_sql_query> # Spark SQL query. Use {input_view} as a placeholder for the input DataFrame/view.
+                                 # Example: "SELECT * FROM {input_view} WHERE condition"
+
+target:
+  type: databricks_catalog_external # Type of the data target. Examples: databricks_catalog_external, adls, s3, etc.
+  details: # Connection details for the target
+    catalog_name: <catalog_name> # Name of the catalog in Databricks
+    schema_name: <schema_name>   # Name of the schema in Databricks
+    table_name: <table_name>     # Name of the table in Databricks
+    external_path: <adls_path_for_external_table> # ADLS path for the external table (e.g., "abfss://container@storageaccount.dfs.core.windows.net/path/to/table")
+    format: delta # Format of the target data. Examples: delta, parquet, csv, etc.
+    mode: overwrite # Write mode for the target. Examples: overwrite, append
+  data_quality_checks: # List of data quality checks to perform on the target data (similar to source)
+    - check_type: not_null
+      columns: [<column1>, <column2>]
+  profiling: # Configuration for data profiling on the target data (similar to source)
+    enabled: true
+    # columns: [<column1>, <column2>] # Optional: List of columns to profile.
