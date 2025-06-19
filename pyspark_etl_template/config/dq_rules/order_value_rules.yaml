@@ -1,0 +1,77 @@
+# Data Quality Rule Set: order_value_rules.yaml
+# Applies to: final_report_df (transformed data, output of 'calculate_total_order_value')
+
+rule_set_name: "order_value_rules"
+description: "Data quality rules for the final customer order report."
+
+# This structure is a placeholder and would be adapted based on the chosen DQ tool.
+
+# Example rules (conceptual):
+rules:
+  - rule_name: "total_monthly_amount_positive"
+    type: "greater_than_or_equal_to_value" # Conceptual type
+    column: "total_monthly_amount"
+    value: 0
+    severity: "WARN" # Could be FAIL_PIPELINE depending on business rules
+    # description: "Total monthly amount for a customer should not be negative."
+
+  - rule_name: "number_of_orders_monthly_positive"
+    type: "greater_than_value"
+    column: "number_of_orders_monthly"
+    value: 0
+    severity: "FAIL_PIPELINE"
+    description: "Number of orders in a month for a customer must be at least 1."
+
+  - rule_name: "customer_id_not_null_in_report"
+    type: "not_null"
+    column: "customer_id"
+    severity: "FAIL_PIPELINE"
+
+  - rule_name: "year_and_month_consistent"
+    type: "column_value_in_range" # Conceptual
+    column: "year"
+    min_value: 2000
+    max_value: 2050 # Or dynamically set
+    severity: "WARN"
+  # - rule_name: "month_valid" # Similar for month
+  #   type: "column_value_in_range"
+  #   column: "month"
+  #   min_value: 1
+  #   max_value: 12
+  #   severity: "WARN"
+
+  # Example for Great Expectations (illustrative)
+  # expectations_suite_name: "final_report_suite"
+  # expectations_file: "expectations/final_report_suite.json"
+  # Example:
+  #   - expectation_type: "expect_column_values_to_be_between"
+  #     kwargs:
+  #       column: "total_monthly_amount"
+  #       min_value: 0
+  #       # max_value: 1000000 # Optional upper bound
+  #       mostly: 0.99 # Allow some outliers if necessary
+
+  # Example for PyDeequ (illustrative)
+  # checks:
+  #   - check_name: "report_aggregates_valid"
+  #     level: "Error"
+  #     description: "Validate key metrics in the final report."
+  #     constraints:
+  #       - constraint_type: "isNonNegative"
+  #         column: "total_monthly_amount"
+  #       - constraint_type: "isPositive"
+  #         column: "number_of_orders_monthly"
+  #       - constraint_type: "isComplete" # Not null
+  #         column: "customer_id"
+
+# Actions to take if rules fail
+# failure_action:
+#   default: "log_only"
+#   on_severity:
+#     FAIL_PIPELINE: "fail_pipeline"
+#     WARN: "log_only"
+
+# alert_configuration:
+#   on_failure: true
+#   method: "slack"
+#   channel: "#etl_alerts_critical"

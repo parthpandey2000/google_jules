@@ -1,0 +1,71 @@
+# Sample Pipeline Configuration: sample_pipeline.yaml
+pipeline_name: "sample_customer_orders_etl"
+description: "A sample ETL pipeline to process customer orders."
+version: "1.0.0"
+
+# Spark configurations specific to this pipeline (optional, can override defaults)
+spark_config:
+  appName: "SampleCustomerOrdersETL"
+  # spark.master: "local[4]" # Example: Can be overridden by environment or CLI
+  # spark.executor.memory: "2g"
+  # spark.driver.memory: "1g"
+  # spark.sql.shuffle.partitions: "10"
+
+# Define the sequence of jobs or stages in the pipeline
+# For a more complex system, this could be a list of job identifiers.
+# For now, we'll keep it simple and assume one main job associated with this pipeline.
+# The main.py will look for a job module that matches the pipeline name (e.g., sample_customer_orders_etl_job.py)
+# or use a more generic job runner that takes components from this config.
+
+# Sources to be used by this pipeline
+sources:
+  - "customers_csv"
+  - "orders_parquet"
+  # - "products_json"
+
+# Transformations to be applied
+# This could be a list of transformation names or configurations.
+# Each name would correspond to a .sql file or a Python transformation module.
+transformations:
+  - name: "join_customer_orders"
+    type: "sql" # or "python"
+    file: "join_customer_orders.sql" # located in config/transformations/
+    inputs: ["customers_csv_df", "orders_parquet_df"] # DataFrame names from loaded sources
+    output: "customer_orders_joined_df"
+  - name: "calculate_total_order_value"
+    type: "python" # Example of a Python transformation
+    module: "custom_transformations.order_calculations" # src.custom_transformations.order_calculations
+    function: "calculate_totals"
+    inputs: ["customer_orders_joined_df"]
+    output: "final_report_df"
+    # params: # Optional parameters for the transformation
+    #   discount_rate: 0.1
+
+# Data Quality checks to be performed
+# Each item could refer to a DQ configuration file or define rules inline.
+data_quality_checks:
+  - rule_set: "customer_data_rules" # Corresponds to config/dq_rules/customer_data_rules.yaml
+    target_dataframe: "customers_csv_df" # Apply to the raw customer data
+  - rule_set: "order_value_rules"
+    target_dataframe: "final_report_df" # Apply to the final transformed data
+
+# Targets where the final output(s) should be written
+targets:
+  - name: "final_report_parquet"
+    dataframe: "final_report_df" # Which transformed DataFrame to write
+    # Other target-specific configurations will be in config/targets/final_report_parquet.yaml
+  # - name: "aggregated_summary_csv"
+  #   dataframe: "summary_df"
+
+# Error handling and notification settings (optional)
+# error_handling:
+#   log_level: "ERROR"
+#   on_failure: "stop_pipeline" # or "continue_with_partial_data"
+#   notifications:
+#     email: "data_ops_team@example.com"
+#     slack_channel: "#data_alerts"
+
+# Parameters specific to this pipeline run (can be overridden by CLI or environment variables)
+# parameters:
+#   processing_date: "today" # or a specific date like "2023-10-26"
+#   region: "US"

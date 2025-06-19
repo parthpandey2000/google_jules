@@ -1,0 +1,66 @@
+# Source Configuration: customers_csv.yaml
+source_name: "customers_csv"
+description: "Customer data sourced from a CSV file."
+source_type: "file" # Could be 'database', 'api', 'stream', etc.
+
+# File-specific configurations
+format: "csv"
+path: "data/sample_input/customers.csv" # Relative to project root, or use absolute path
+
+# CSV specific options
+options:
+  header: "true" # Does the CSV file have a header?
+  inferSchema: "true" # Should Spark infer the schema?
+  sep: "," # Separator character
+  # encoding: "UTF-8"
+  # dateFormat: "yyyy-MM-dd"
+  # timestampFormat: "yyyy-MM-dd HH:mm:ss"
+  # nullValue: "" # String representation of null values
+
+# Schema definition (optional but recommended for production)
+# If not provided and inferSchema is false, an error might occur or all columns might be strings.
+# If inferSchema is true, this schema can be used to validate or cast columns.
+schema:
+  fields:
+    - name: "customer_id"
+      type: "integer"
+      nullable: false
+      metadata: {"description": "Unique identifier for the customer."}
+    - name: "customer_name"
+      type: "string"
+      nullable: true
+    - name: "email"
+      type: "string"
+      nullable: true
+    - name: "signup_date"
+      type: "date"
+      nullable: true
+      # metadata: {"format": "yyyy-MM-dd"} # If specific date format needs parsing
+
+# Data Quality expectations for this source (optional)
+# These are basic checks before transformations. More complex rules in dq_rules.
+# Example using a simplified structure; could integrate with Great Expectations or Deequ.
+# data_quality_expectations:
+#   - expect_column_to_exist: "customer_id"
+#   - expect_column_values_to_be_unique: "customer_id"
+#   - expect_column_values_to_not_be_null: "customer_id"
+#   - expect_column_values_to_match_regex:
+#       column: "email"
+#       regex: "^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$"
+
+# Data preview / sampling options for development or debugging
+# sample_options:
+#   enabled: true
+#   count: 10 # Number of rows to sample when testing the source loading
+
+# Incremental loading configuration (if applicable)
+# incremental_load:
+#   enabled: false
+#   watermark_column: "updated_at" # Timestamp or sequential ID column for delta loading
+#   previous_watermark_value: null # To be updated by the ETL process
+
+# Partitioning information if the source is partitioned
+# partitioning:
+#   scheme: "date" # e.g., date, country
+#   columns: ["year", "month", "day"] # Based on path structure like /path/to/data/year=2023/month=01/day=01
+#   base_path: "data/sample_input/partitioned_customers/"

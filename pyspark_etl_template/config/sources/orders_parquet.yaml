@@ -1,0 +1,46 @@
+# Source Configuration: orders_parquet.yaml
+source_name: "orders_parquet"
+description: "Order data sourced from Parquet files."
+source_type: "file"
+
+# File-specific configurations
+format: "parquet"
+path: "data/sample_input/orders.parquet" # Relative to project root, or use absolute path
+
+# Parquet specific options (Parquet is often self-describing, so fewer options are needed)
+options:
+  # mergeSchema: "false" # Set to true if Parquet files have compatible but evolving schemas
+
+# Schema definition (optional for Parquet as it's embedded, but good for documentation and validation)
+# Spark will read the schema from Parquet files by default.
+# Providing a schema here can be used for explicit validation or selection.
+schema:
+  fields:
+    - name: "order_id"
+      type: "string"
+      nullable: false
+      metadata: {"description": "Unique identifier for the order."}
+    - name: "customer_id"
+      type: "integer"
+      nullable: false
+      metadata: {"description": "Identifier of the customer who placed the order."}
+    - name: "order_date"
+      type: "timestamp" # Parquet often stores timestamps accurately
+      nullable: false
+    - name: "order_amount"
+      type: "double"
+      nullable: true
+    - name: "product_id" # Assuming a single product per order row for simplicity
+      type: "integer"
+      nullable: true
+
+# Incremental loading configuration (if applicable)
+# incremental_load:
+#   enabled: false
+#   watermark_column: "order_date"
+
+# Partitioning information if the source is partitioned
+# partitioning:
+#   scheme: "monthly"
+#   columns: ["order_year", "order_month"]
+#   base_path: "data/sample_input/partitioned_orders/"

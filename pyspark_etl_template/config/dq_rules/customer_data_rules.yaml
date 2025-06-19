@@ -1,0 +1,70 @@
+# Data Quality Rule Set: customer_data_rules.yaml
+# Applies to: customers_csv_df (raw customer data)
+
+rule_set_name: "customer_data_rules"
+description: "Basic data quality rules for raw customer data."
+
+# This structure is a placeholder and would be adapted based on the chosen DQ tool (e.g., Great Expectations, PyDeequ)
+# For Great Expectations, this might point to an Expectation Suite JSON file or define expectations directly.
+# For PyDeequ, this would define Checks and Analyzers.
+
+# Example rules (conceptual):
+rules:
+  - rule_name: "customer_id_not_null"
+    type: "not_null" # Conceptual type
+    column: "customer_id"
+    severity: "FAIL_PIPELINE" # or "WARN"
+    # action: "quarantine_row" # (if framework supports it)
+
+  - rule_name: "customer_id_unique"
+    type: "is_unique"
+    column: "customer_id"
+    severity: "FAIL_PIPELINE"
+
+  - rule_name: "email_format_valid"
+    type: "regex_match"
+    column: "email"
+    pattern: "^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$" # Basic email regex
+    severity: "WARN"
+    # allow_nulls: true # If email can be null and that's acceptable
+
+  - rule_name: "signup_date_plausible"
+    type: "date_range" # Conceptual type
+    column: "signup_date"
+    min_date: "2000-01-01"
+    # max_date: "today" # Dynamic value, DQ framework would need to support this
+    severity: "WARN"
+
+  # Example for Great Expectations (illustrative)
+  # expectations_suite_name: "customer_suite"
+  # expectations_file: "expectations/customer_suite.json"
+
+  # Example for PyDeequ (illustrative)
+  # checks:
+  #   - check_name: "customer_id_checks"
+  #     level: "Error" # Corresponds to CheckLevel.Error
+  #     description: "Customer ID must be present and unique."
+  #     constraints:
+  #       - constraint_type: "isComplete"
+  #         column: "customer_id"
+  #       - constraint_type: "isUnique"
+  #         column: "customer_id"
+  #   - check_name: "email_check"
+  #     level: "Warning"
+  #     description: "Email should be in a valid format if present."
+  #     constraints:
+  #       - constraint_type: "compliesWith"
+  #         column: "email"
+  #         sql_expression: "regexp_like(email, '^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$') OR email IS NULL"
+
+# Actions to take if rules fail
+# failure_action:
+#   default: "log_only" # log_only, quarantine_failed_records, fail_pipeline
+#   on_severity:
+#     FAIL_PIPELINE: "fail_pipeline"
+#     WARN: "log_only"
+
+# alert_configuration:
+#   on_failure: true
+#   method: "email" # or slack, webhook
+#   recipients: ["data_governance@example.com"]

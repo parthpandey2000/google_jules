@@ -1,0 +1,3 @@
+pyspark>=3.3.0
+pyyaml>=6.0
+# Add other dependencies like great_expectations or pydeequ later if chosen

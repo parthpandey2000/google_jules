@@ -1,0 +1,77 @@
+# Target Configuration: final_report_parquet.yaml
+target_name: "final_report_parquet"
+description: "Final aggregated report to be saved as Parquet files."
+target_type: "file" # Could be 'database', 'api', 'data_warehouse_table', etc.
+
+# File-specific configurations
+format: "parquet"
+path: "data/output/final_report" # Relative to project root, or use absolute path
+
+# Write mode for Spark DataFrameWriter
+# Options: "overwrite", "append", "ignore", "error", "errorifexists"
+write_mode: "overwrite" # Common for batch ETL jobs to replace the output
+
+# Parquet specific options
+options:
+  compression: "snappy" # e.g., "none", "snappy", "gzip", "lzo"
+  # Other Parquet options like:
+  # "maxRecordsPerFile": 1000000
+
+# Partitioning strategy for the output (optional)
+# This defines how the data will be structured on disk for efficient querying.
+partition_by: # List of column names to partition by
+  # - "processing_date"
+  # - "region"
+  - "year"
+  - "month"
+# The final_report_df should have 'year' and 'month' columns if partitioning is used.
+
+# Schema validation before writing (optional)
+# Ensures the DataFrame being written matches an expected schema.
+# schema:
+#   fields:
+#     - name: "customer_id"
+#       type: "integer"
+#       nullable: false
+#     - name: "customer_name"
+#       type: "string"
+#       nullable: true
+#     - name: "order_id"
+#       type: "string"
+#       nullable: false
+#     - name: "order_date"
+#       type: "date" # Assuming final report uses date, not timestamp
+#       nullable: false
+#     - name: "total_order_value"
+#       type: "double"
+#       nullable: true
+#     - name: "year" # For partitioning
+#       type: "integer"
+#       nullable: true
+#     - name: "month" # For partitioning
+#       type: "integer"
+#       nullable: true
+
+# Pre-write or post-write actions (optional)
+# Example: custom scripts or commands to run before/after writing.
+# pre_write_actions:
+#   - type: "log_message"
+#     message: "Starting to write final_report_parquet."
+#   - type: "execute_script"
+#     script_path: "scripts/pre_write_cleanup.sh"
+#     args: ["--path", "data/output/final_report"]
+
+# post_write_actions:
+#   - type: "log_message"
+#     message: "Successfully wrote final_report_parquet."
+  # - type: "generate_metadata" # e.g., create a _SUCCESS file or manifest
+  #   metadata_file: "_MANIFEST.json"
+  # - type: "trigger_downstream_process"
+  #   api_endpoint: "http://downstream-service/api/notify"
+  #   payload: {"dataset": "final_report_parquet", "status": "updated"}
+
+# Quality checks on the output data (optional)
+# Can be defined here or reference a DQ rule set.
+# data_quality_checks:
+#   - rule_set: "output_validation_rules" # from config/dq_rules/
+#     fail_on_error: true # If true, pipeline might fail if DQ checks on output don't pass.
