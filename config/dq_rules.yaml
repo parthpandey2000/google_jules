@@ -1,0 +1,119 @@
+# Data Quality (DQ) Rules Configurations
+# Rules are defined per table alias (which can be a source alias or a target alias).
+# Each rule specifies:
+# - 'column': The column to apply the rule to.
+# - 'type': The type of DQ check. Supported types are defined in src/data_quality/validator.py
+#   (e.g., not_null, unique, allowed_values, pattern, type_check, range).
+# - Additional parameters based on the rule type (e.g., 'values' for allowed_values, 'regex' for pattern).
+
+# --- Source Table DQ Rules (Examples) ---
+
+astrid_disease_prevalence: # Alias from sources.yaml
+  rules:
+    - column: "datacut"
+      type: "not_null"
+      description: "Datacut identifier should always be present."
+    - column: "year"
+      type: "not_null"
+    - column: "year"
+      type: "range"
+      min_value: 2000
+      max_value: 2050 # Assuming years are within a reasonable range
+      description: "Year should be within a sensible range."
+    - column: "sex"
+      type: "allowed_values"
+      values: ["Male", "Female", "Both sexes", "Unknown"] # Example values
+      description: "Sex column should only contain predefined values."
+    - column: "num" # Assuming 'num' is a numeric count
+      type: "type_check"
+      expected_type: "long" # Or integer, double, etc. based on actual data
+      description: "Numeric count 'num' should be of the correct data type."
+    - column: "num"
+      type: "range"
+      min_value: 0
+      description: "Counts cannot be negative."
+
+icd10lookup: # Alias from sources.yaml
+  rules:
+    - column: "dx10icd"
+      type: "not_null"
+      description: "ICD-10 code must not be null."
+    - column: "dx10icd"
+      type: "unique"
+      description: "Each ICD-10 code should be unique in the lookup table."
+    - column: "description"
+      type: "not_null"
+      description: "ICD-10 description must not be null."
+
+# --- Target Table DQ Rules (Examples) ---
+# These rules are applied *before* writing the transformed data.
+
+dim_datacut: # Alias from targets.yaml
+  rules:
+    - column: "datacut_key"
+      type: "not_null"
+    - column: "datacut_key"
+      type: "unique"
+    - column: "datacut"
+      type: "not_null"
+
+dim_disease: # Alias from targets.yaml
+  rules:
+    - column: "disease_code_key"
+      type: "not_null"
+    - column: "disease_code_key"
+      type: "unique"
+    - column: "disease_code"
+      type: "not_null"
+    - column: "disease_description"
+      type: "not_null"
+    - column: "category_code" # Expecting -1 for nulls from source
+      type: "not_null" # This check might be too strict if -1 is a valid "unknown" representation
+    - column: "category_description" # Expecting "Undefined Category" for nulls
+      type: "not_null"
+
+fact_comorbidities: # Alias from targets.yaml
+  rules:
+    - column: "year"
+      type: "not_null"
+    - column: "age_class_key"
+      type: "not_null"
+    - column: "disease_code_key"
+      type: "not_null"
+    - column: "comorbidity_code_key"
+      type: "not_null"
+    - column: "comorbidity_population"
+      type: "range"
+      min_value: 0
+      description: "Population counts must be non-negative."
+    - column: "comorbidity_incidence_population"
+      type: "range"
+      min_value: 0
+      description: "Incidence population counts must be non-negative."
+
+# Add more rules for other source and target tables as needed.
+# For example:
+# astrid_comorbidities:
+#   rules:
+#     - column: "year"
+#       type: "not_null"
+#     - column: "disease_code"
+#       type: "not_null"
+#     - column: "comorb_code"
+#       type: "not_null"
+
+# dim_year:
+#  rules:
+#    - column: "year"
+#      type: "not_null"
+#    - column: "year"
+#      type: "unique"
+#    - column: "max_year_flag"
+#      type: "allowed_values"
+#      values: [0, 1]
+#    - column: "min_year_flag"
+#      type: "allowed_values"
+#      values: [0, 1]
+
+# Ensure aliases used here match those in sources.yaml and targets.yaml
+# and that column names are correct for each table.

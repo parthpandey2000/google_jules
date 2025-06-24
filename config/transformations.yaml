@@ -1,0 +1,138 @@
+# Transformation configurations
+# Each item defines how a target table is created.
+# - 'target_table': The alias of the target table (must match an alias in targets.yaml and a registered transformation function).
+# - 'sources': A list of source aliases (from sources.yaml) or previously transformed target aliases
+#              that are required for this transformation.
+# - 'description': A brief note about the transformation.
+# - 'params' (optional): Any specific parameters needed by the transformation Python function.
+#                        (e.g., specific column names if they are not fixed, filter conditions, etc.)
+
+transformations:
+  - target_table: "dim_datacut"
+    sources: ["astrid_disease_prevalence"]
+    description: "Creates datacut dimension from distinct values in astrid_disease_prevalence."
+
+  - target_table: "dim_age_class"
+    sources: ["astrid_disease_prevalence"]
+    description: "Creates age_class dimension from distinct values in astrid_disease_prevalence."
+
+  - target_table: "dim_disease"
+    sources: ["icd10lookup"]
+    description: "Creates disease dimension from icd10lookup table."
+
+  - target_table: "dim_medication"
+    sources: ["generic_multim_1to3", "ndc_multum_1to3", "hcpcs_multum_1to3"]
+    description: "Creates medication dimension by combining and processing various multum tables."
+    # The transformation function for dim_medication will handle the specific SQL logic
+    # involving UNIONs and JOINs between these sources.
+
+  - target_table: "dim_payor"
+    sources: ["astrid_demographics_general_population_counts"]
+    description: "Creates payor dimension from distinct payors."
+
+  - target_table: "dim_region"
+    sources: ["astrid_demographics_general_population_counts"]
+    description: "Creates region dimension from distinct demographic values where category is 'Region'."
+
+  - target_table: "dim_sex_category"
+    sources: ["astrid_disease_prevalence"]
+    description: "Creates sex_category dimension from distinct sex values."
+
+  - target_table: "dim_year"
+    sources: ["astrid_disease_prevalence"]
+    description: "Creates year dimension with min/max year flags."
+
+  - target_table: "dim_race"
+    sources: ["astrid_disease_prevalence"] # STTM implies this, though 'Source Column' is N/A. Logic "SELECT DISTINCT (race)"
+    description: "Creates race dimension from distinct race values."
+
+  - target_table: "dim_ethnicity"
+    sources: ["astrid_disease_prevalence"] # STTM implies this. Logic "SELECT DISTINCT (ethnicity)"
+    description: "Creates ethnicity dimension from distinct ethnicity values."
+
+  # Fact Tables - these will depend on previously created dimensions
+  - target_table: "fact_comorbidities"
+    sources:
+      - "astrid_comorbidities"
+      - "astrid_incidence_rates" # For comorbidity_incidence_population and rate
+      - "dim_age_class"
+      - "dim_sex_category"
+      - "dim_race"
+      - "dim_ethnicity"
+      - "dim_disease" # Used twice, for disease_code_key and comorbidity_code_key
+    description: "Creates fact table for comorbidities, joining with relevant dimensions."
+    # The transformation function will need to handle aliasing dim_disease for the two different joins.
+
+  - target_table: "fact_demographics_disease_counts"
+    sources:
+      - "astrid_demographics_disease_population_counts"
+      - "dim_disease"
+      - "dim_payor"
+      - "dim_sex_category"
+      - "dim_region"
+      - "dim_age_class"
+    description: "Creates fact table for disease-specific demographic counts."
+
+  - target_table: "fact_demographics_general_counts"
+    sources:
+      - "astrid_demographics_general_population_counts" # STTM refers to "astrid_demographics_disease_population_counts" for some columns, this might be a typo in STTM? Assuming general_counts source.
+                                                        # If it's indeed disease_counts, the source list should be updated.
+                                                        # For now, using the table name from the target table's name.
+      - "dim_race"
+      - "dim_ethnicity"
+      - "dim_region"
+      - "dim_age_class"
+      # Note: STTM for fact_demographics_general_counts shows source table "astrid_demographics_disease_population_counts"
+      # for year, race_key, ethnicity_key, region_key, age_class_key. This is confusing.
+      # For this template, I'm assuming it should be "astrid_demographics_general_population_counts".
+      # If not, the source alias here needs to be "astrid_demographics_disease_population_counts".
+      # The Python transformation logic must align with the actual source table used.
+    description: "Creates fact table for general demographic counts."
+
+  - target_table: "fact_disease"
+    sources:
+      - "astrid_disease_prevalence"
+      - "astrid_disease_incidence"
+      - "astrid_incidence_rates" # For denom_timeatrisk
+      - "astrid_comorbidities"   # For disease_population_comorbidity_denom
+      - "astrid_hcru_disease_population"
+      - "dim_age_class"
+      - "dim_sex_category"
+      - "dim_disease"
+    description: "Creates fact table for disease metrics including prevalence, incidence, and HCRU."
+
+  - target_table: "fact_general_population"
+    sources:
+      - "astrid_disease_prevalence" # Source for population, age, sex, race, ethnicity keys and general_population sum
+      - "astrid_disease_incidence"  # Source for general_population_timeatrisk
+      - "astrid_hcru_general_population"
+      - "dim_age_class"
+      - "dim_sex_category"
+      - "dim_race"
+      - "dim_ethnicity"
+    description: "Creates fact table for general population metrics including HCRU."
+
+  - target_table: "fact_medication_disease_population"
+    sources:
+      - "astrid_medications_disease_population"
+      # The STTM mentions "hive_metastore.rwe_fastrack_dashboard_final.astrid_medications_disease_population"
+      # and "hive_metastore.rwe_fastrack_dashboard_final.dim_medication" in its SQL.
+      # This config assumes "astrid_medications_disease_population" is the alias for the source table,
+      # and "dim_medication" is the alias for the already transformed dimension.
+      - "dim_age_class"
+      - "dim_sex_category" # STTM has race_key then ethnicity_key then sex_category_key. Order in YAML sources doesn't matter.
+      - "dim_race"
+      - "dim_ethnicity"
+      - "dim_disease"
+      - "dim_medication"
+    description: "Creates fact table for medication usage in disease population."
+
+  - target_table: "fact_medication_general_population"
+    sources:
+      - "astrid_medications_general_population"
+      - "dim_age_class"
+      - "dim_sex_category"
+      - "dim_race"
+      - "dim_ethnicity"
+      - "dim_medication"
+    description: "Creates fact table for medication usage in general population."

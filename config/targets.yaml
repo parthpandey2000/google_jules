@@ -1,0 +1,139 @@
+# Target table configurations
+# Each target has:
+# - 'name': Fully qualified table name in Databricks Catalog (e.g., catalog.schema.table).
+# - 'alias': An alias for the target, often matching the table name. Used for linking to DQ rules and potentially in logs.
+# - 'path': The ADLS path where the data for this external table will be stored.
+#           Replace "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/"
+#           with your actual ADLS container and path.
+# - 'format': Data format (e.g., "delta", "parquet"). "delta" is recommended for Databricks.
+# - 'mode': Write mode ("overwrite", "append"). Typically "overwrite" for dimensions and snapshots of facts.
+# - 'partitions' (optional): A list of columns to partition by.
+# - 'options' (optional): Additional Spark write options.
+
+targets:
+  - name: "curated_catalog.curated_schema.dim_datacut"
+    alias: "dim_datacut"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/dim_datacut"
+    format: "delta"
+    mode: "overwrite"
+    description: "Dimension table for data cut dates."
+
+  - name: "curated_catalog.curated_schema.dim_age_class"
+    alias: "dim_age_class"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/dim_age_class"
+    format: "delta"
+    mode: "overwrite"
+    description: "Dimension table for age classifications."
+
+  - name: "curated_catalog.curated_schema.dim_disease"
+    alias: "dim_disease"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/dim_disease"
+    format: "delta"
+    mode: "overwrite"
+    description: "Dimension table for diseases based on ICD-10."
+
+  - name: "curated_catalog.curated_schema.dim_medication"
+    alias: "dim_medication"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/dim_medication"
+    format: "delta"
+    mode: "overwrite"
+    description: "Dimension table for medications."
+
+  - name: "curated_catalog.curated_schema.dim_payor"
+    alias: "dim_payor"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/dim_payor"
+    format: "delta"
+    mode: "overwrite"
+    description: "Dimension table for payors."
+
+  - name: "curated_catalog.curated_schema.dim_region"
+    alias: "dim_region"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/dim_region"
+    format: "delta"
+    mode: "overwrite"
+    description: "Dimension table for regions."
+
+  - name: "curated_catalog.curated_schema.dim_sex_category"
+    alias: "dim_sex_category"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/dim_sex_category"
+    format: "delta"
+    mode: "overwrite"
+    description: "Dimension table for sex categories."
+
+  - name: "curated_catalog.curated_schema.dim_year"
+    alias: "dim_year"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/dim_year"
+    format: "delta"
+    mode: "overwrite"
+    partitions: ["year"] # Example: partitioning dim_year by year might be redundant but possible
+    description: "Dimension table for years, with flags for min/max year."
+
+  - name: "curated_catalog.curated_schema.dim_race"
+    alias: "dim_race"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/dim_race"
+    format: "delta"
+    mode: "overwrite"
+    description: "Dimension table for race categories."
+
+  - name: "curated_catalog.curated_schema.dim_ethnicity"
+    alias: "dim_ethnicity"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/dim_ethnicity"
+    format: "delta"
+    mode: "overwrite"
+    description: "Dimension table for ethnicity categories."
+
+  - name: "curated_catalog.curated_schema.fact_comorbidities"
+    alias: "fact_comorbidities"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/fact_comorbidities"
+    format: "delta"
+    mode: "overwrite"
+    partitions: ["year"] # Facts are often partitioned by date components
+    description: "Fact table for comorbidities."
+
+  - name: "curated_catalog.curated_schema.fact_demographics_disease_counts"
+    alias: "fact_demographics_disease_counts"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/fact_demographics_disease_counts"
+    format: "delta"
+    mode: "overwrite"
+    partitions: ["year", "demographic_category"]
+    description: "Fact table for demographic counts related to diseases."
+
+  - name: "curated_catalog.curated_schema.fact_demographics_general_counts"
+    alias: "fact_demographics_general_counts"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/fact_demographics_general_counts"
+    format: "delta"
+    mode: "overwrite"
+    partitions: ["year"] # Add more relevant partitions if available
+    description: "Fact table for general demographic counts."
+
+  - name: "curated_catalog.curated_schema.fact_disease"
+    alias: "fact_disease"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/fact_disease"
+    format: "delta"
+    mode: "overwrite"
+    partitions: ["year"]
+    description: "Fact table for disease prevalence, incidence, and HCRU information."
+
+  - name: "curated_catalog.curated_schema.fact_general_population"
+    alias: "fact_general_population"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/fact_general_population"
+    format: "delta"
+    mode: "overwrite"
+    partitions: ["year"]
+    description: "Fact table for general population statistics and HCRU."
+
+  - name: "curated_catalog.curated_schema.fact_medication_disease_population"
+    alias: "fact_medication_disease_population"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/fact_medication_disease_population"
+    format: "delta"
+    mode: "overwrite"
+    partitions: ["year"]
+    description: "Fact table for medication usage in disease-specific populations."
+
+  - name: "curated_catalog.curated_schema.fact_medication_general_population"
+    alias: "fact_medication_general_population"
+    path: "abfss://your_container@your_storageaccount.dfs.core.windows.net/etl_output/fact_medication_general_population"
+    format: "delta"
+    mode: "overwrite"
+    partitions: ["year"]
+    description: "Fact table for medication usage in general population."

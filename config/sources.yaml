@@ -1,0 +1,130 @@
+# Source table configurations
+# Each source has a 'name' (fully qualified table name in Databricks catalog)
+# and an 'alias' which is used to refer to this source in transformation configurations
+# and for linking to DQ rules.
+
+sources:
+  - name: "raw_catalog.raw_schema.astrid_disease_prevalence"
+    alias: "astrid_disease_prevalence"
+    description: "Source table containing disease prevalence data."
+
+  - name: "raw_catalog.raw_schema.icd10lookup"
+    alias: "icd10lookup"
+    description: "Source table for ICD-10 code lookups and descriptions."
+
+  - name: "raw_catalog.raw_schema.generic_multim_1to3"
+    alias: "generic_multim_1to3"
+    description: "Source table for generic medication information (Multum level 1 to 3)."
+
+  - name: "raw_catalog.raw_schema.ndc_multum_1to3"
+    alias: "ndc_multum_1to3"
+    description: "Source table for NDC Multum medication data."
+
+  - name: "raw_catalog.raw_schema.hcpcs_multum_1to3"
+    alias: "hcpcs_multum_1to3"
+    description: "Source table for HCPCS Multum medication data."
+
+  - name: "raw_catalog.raw_schema.astrid_demographics_general_population_counts"
+    alias: "astrid_demographics_general_population_counts"
+    description: "Source table with general population demographic counts."
+
+  - name: "raw_catalog.raw_schema.astrid_comorbidities"
+    alias: "astrid_comorbidities"
+    description: "Source table containing comorbidity data."
+
+  - name: "raw_catalog.raw_schema.astrid_incidence_rates"
+    alias: "astrid_incidence_rates"
+    description: "Source table with incidence rates."
+
+  - name: "raw_catalog.raw_schema.astrid_demographics_disease_population_counts"
+    alias: "astrid_demographics_disease_population_counts"
+    description: "Source table with disease-specific population demographic counts."
+
+  - name: "raw_catalog.raw_schema.astrid_disease_incidence"
+    alias: "astrid_disease_incidence"
+    description: "Source table for disease incidence data."
+
+  - name: "raw_catalog.raw_schema.astrid_hcru_disease_population"
+    alias: "astrid_hcru_disease_population"
+    description: "Source table for HCRU data for disease population."
+
+  - name: "raw_catalog.raw_schema.astrid_hcru_general_population"
+    alias: "astrid_hcru_general_population"
+    description: "Source table for HCRU data for general population."
+
+  - name: "raw_catalog.raw_schema.astrid_medications_disease_population"
+    alias: "astrid_medications_disease_population"
+    description: "Source table for medication data in disease population."
+
+  - name: "raw_catalog.raw_schema.astrid_medications_general_population"
+    alias: "astrid_medications_general_population"
+    description: "Source table for medication data in general population."
+
+# Note: The 'rwe_fastrack_dashboard_staging' schema mentioned in some STTM medication logic
+# (e.g., for dim_medication) is assumed to be where ndc_multum_1to3 and hcpcs_multum_1to3 reside.
+# If they are in a different catalog/schema, update their 'name' accordingly.
+# For example, if they are in 'rwe_fastrack_dashboard_staging.ndc_multum_1to3', the name would be:
+# 'your_catalog.rwe_fastrack_dashboard_staging.ndc_multum_1to3'
+# The current config assumes they are in 'raw_catalog.raw_schema.' like other astrid tables for consistency.
+# This needs to be verified against the actual environment.
+# The transformation logic for dim_medication will need to handle the specific source names.
+# The STTM for dim_medication refers to `rwe_fastrack_dashboard_staging.ndc_multum_1to3` and `rwe_fastrack_dashboard_staging.hcpcs_multum_1to3`.
+# Let's adjust ndc_multum_1to3 and hcpcs_multum_1to3 to reflect this, assuming 'raw_catalog' is the catalog.
+# If 'rwe_fastrack_dashboard_staging' is a different catalog, then it would be 'rwe_fastrack_dashboard_staging.your_schema.table'.
+# For now, assuming 'raw_catalog.rwe_fastrack_dashboard_staging.table_name'.
+
+# Corrected entries for Multum tables based on STTM's SQL:
+# (Removing previous ndc_multum_1to3 and hcpcs_multum_1to3 and adding corrected ones)
+# This requires re-evaluation of the list.
+# Let's assume the user will ensure these names are correct for their Databricks environment.
+# The aliases are what matter for the transformation logic linking.
+# The initial list is fine, the transformation logic will use the aliases.
+# The STTM for dim_medication uses:
+#   rwe_fastrack_dashboard_staging.ndc_multum_1to3
+#   rwe_fastrack_dashboard_staging.hcpcs_multum_1to3
+# And also joins with `generic_multum_1to3` (unqualified).
+# This implies `generic_multim_1to3` might be a different kind of table or view.
+# For simplicity in this template, all are listed as source tables.
+# The transformation for dim_medication will need to be written carefully.
+# The YAML is a declaration of available sources; the transformation logic dictates how they are read and joined.
+# The `name` field should be the exact Databricks catalog path.
+# Let's provide placeholder catalog/schema for those specific tables if they differ.
+# For now, I will keep the initial list and structure, and the transformation YAML will specify which sources are used for each target.
+# If `rwe_fastrack_dashboard_staging` is a schema in `raw_catalog`, then:
+#   - name: "raw_catalog.rwe_fastrack_dashboard_staging.ndc_multum_1to3"
+#     alias: "ndc_multum_1to3_staging" # Using a distinct alias
+#   - name: "raw_catalog.rwe_fastrack_dashboard_staging.hcpcs_multum_1to3"
+#     alias: "hcpcs_multum_1to3_staging"
+# And `generic_multim_1to3` might be:
+#   - name: "raw_catalog.raw_schema.generic_multim_1to3" # or wherever it is
+#     alias: "generic_multim_1to3"
+# The STTM is a bit ambiguous on the exact FQNs vs relative names in SQL.
+# I will stick to the unique list of table names derived and assume they are all top-level sources for now.
+# The transformation logic will clarify their usage.
+# The current list of aliases in sources.yaml:
+# astrid_disease_prevalence, icd10lookup, generic_multim_1to3, ndc_multum_1to3, hcpcs_multum_1to3, ... etc.
+# This seems fine. The transformation for dim_medication will list "ndc_multum_1to3", "hcpcs_multum_1to3", "generic_multim_1to3" as its sources.
+# The actual SQL in STTM:
+#   FROM rwe_fastrack_dashboard_staging.ndc_multum_1to3
+#   FROM rwe_fastrack_dashboard_staging.hcpcs_multum_1to3
+#   LEFT JOIN generic_multim_1to3 d ON ...
+# This indicates the `ndc_multum_1to3` and `hcpcs_multum_1to3` are likely from a specific schema.
+# And `generic_multim_1to3` is also a table.
+# It's better to be explicit in the source config if their locations are known to be different.
+# Let's assume for the template that `raw_catalog.raw_schema` is the default for `astrid_*` tables,
+# and `raw_catalog.rwe_fastrack_dashboard_staging` for the multum tables as per the SQL.
+
+# REVISED source list based on STTM details for dim_medication:
+# astrid_disease_prevalence --> raw_catalog.raw_schema.astrid_disease_prevalence
+# icd10lookup --> raw_catalog.raw_schema.icd10lookup
+# generic_multim_1to3 --> raw_catalog.rwe_fastrack_dashboard_staging.generic_multim_1to3 (assuming, based on context)
+# ndc_multum_1to3 --> raw_catalog.rwe_fastrack_dashboard_staging.ndc_multum_1to3
+# hcpcs_multum_1to3 --> raw_catalog.rwe_fastrack_dashboard_staging.hcpcs_multum_1to3
+# ... and other astrid tables in raw_catalog.raw_schema.
+
+# Let's update the file content with this assumption.
+# I will regenerate the file content for sources.yaml with these more specific paths.
+# This means the previous `create_file_with_block` for `sources.yaml` was a bit premature.
+# I should have analyzed this detail first. I will use `overwrite_file_with_block`.Okay, I've analyzed the STTM more carefully regarding table locations, especially for the medication-related tables. I'll assume a `raw_catalog` and then either `raw_schema` for `astrid_*` tables or `rwe_fastrack_dashboard_staging` for the `multum` tables.
+
+Here's the `sources.yaml`:

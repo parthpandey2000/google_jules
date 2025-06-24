@@ -1,0 +1,2 @@
+# This directory is for shell scripts, e.g., for running pipelines or other automation.
+# Adding a .gitkeep file so the directory is tracked by git even when empty.
