@@ -1,0 +1,21 @@
+# Core dependencies for the PySpark ETL Pipeline Template
+
+# PySpark is usually provided by the Databricks runtime environment.
+# Specify a version if you have specific needs for local development or other environments.
+# Example: pyspark==3.4.1
+# For Databricks, this line might be commented out or omitted if using cluster-provided Spark.
+pyspark
+
+# For parsing the YAML configuration file
+PyYAML>=5.1
+
+# For notifications (e.g., to Microsoft Teams webhooks)
+# requests # Uncomment if you implement HTTP based notifications like Teams/Slack webhooks.
+
+# Add other specific Python libraries your custom transformations or connectors might need.
+# Example:
+# pandas
+# numpy
+# boto3 (if interacting with AWS services directly)
+# azure-storage-file-datalake (if interacting with ADLS Gen2 directly via Python SDK)
+# great_expectations (if using Great Expectations for DQ)

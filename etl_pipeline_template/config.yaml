@@ -1,0 +1,132 @@
+# ETL Pipeline Configuration
+
+# General pipeline settings
+pipeline_name: "customer_orders_etl"
+pipeline_version: "1.0"
+environment: "dev" # dev, test, prod
+
+# Spark configurations (optional, can be set in Databricks cluster)
+spark_config:
+  spark.app.name: "PySparkETLTemplate"
+  spark.master: "local[*]" # Change for Databricks cluster, e.g., "yarn" or remove
+  # Add other Spark configurations as needed
+
+# Source configuration
+source:
+  name: "customer_raw_data"
+  type: "delta" # delta, parquet, csv, jdbc, etc.
+  # For Databricks catalog table
+  catalog_name: "main"
+  schema_name: "bronze"
+  table_name: "customers"
+  # For file-based sources (if not using catalog)
+  # path: "/mnt/adls_landing/customer_data/"
+  # options:
+  #   header: "true"
+  #   inferSchema: "true"
+
+  # Data Quality and Profiling for Source
+  data_quality_checks:
+    - check_type: "not_null"
+      columns: ["customer_id", "email"]
+      threshold: 0.98 # Minimum percentage of non-null values
+    - check_type: "unique"
+      columns: ["customer_id"]
+    - check_type: "value_range" # For numeric/date columns
+      column: "age"
+      min_value: 18
+      max_value: 99
+    - check_type: "pattern_match" # For string columns
+      column: "email"
+      pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$" # Basic email regex
+    - check_type: "row_count"
+      min_rows: 100
+      max_rows: 1000000
+
+  profiling:
+    enabled: true
+    # Specific columns to profile, if empty, profile all
+    # columns_to_profile: ["age", "registration_date", "total_spend"]
+
+# Transformations
+# List of transformations to apply in order.
+# Each transformation must have a corresponding function in transformations/transformations.py
+transformations:
+  - name: "filter_active_customers"
+    enabled: true
+    params:
+      status_column: "status"
+      active_value: "active"
+  - name: "rename_columns"
+    enabled: true
+    params:
+      rename_map:
+        "customer_id": "cust_id"
+        "registration_date": "reg_dt"
+  - name: "add_load_timestamp"
+    enabled: true
+    params:
+      timestamp_column_name: "etl_load_ts"
+  # Example of a transformation that might be run individually by ADF
+  - name: "calculate_customer_lifetime_value" # This might be a more complex, separate job
+    enabled: true # This could be overridden by ADF parameter
+    params:
+      order_table_catalog: "main"
+      order_table_schema: "silver"
+      order_table_name: "orders"
+      join_key_customer: "cust_id"
+      join_key_order: "customer_id"
+      value_column: "order_amount"
+      ltv_column_name: "lifetime_value"
+
+# Target configuration
+target:
+  name: "processed_customer_data"
+  type: "delta" # delta, parquet, etc.
+  # For Databricks catalog external table
+  catalog_name: "main"
+  schema_name: "silver"
+  table_name: "processed_customers"
+  # ADLS path for external table data
+  # Ensure this path is accessible and configured for external tables in Databricks
+  external_table_path: "abfss://your-container@your-storage-account.dfs.core.windows.net/silver/processed_customers"
+  write_mode: "overwrite" # append, overwrite, errorifexists
+  partition_by: ["reg_dt"] # Optional: list of columns to partition by
+  # options:
+  #   mergeSchema: "true" # For Delta Lake
+
+  # Data Quality and Profiling for Target
+  data_quality_checks:
+    - check_type: "not_null"
+      columns: ["cust_id"]
+      threshold: 1.0
+    - check_type: "unique"
+      columns: ["cust_id"]
+    - check_type: "row_count_vs_source" # Compare row count with source after transformations
+      # This requires source_df_count to be passed to the DQ check function
+      expected_reduction_percentage_min: 0.0 # e.g., if filtering reduces rows
+      expected_reduction_percentage_max: 50.0
+
+  profiling:
+    enabled: true
+
+# Notification settings
+notifications:
+  on_success:
+    - type: "log" # console, email, teams_webhook
+    # - type: "email"
+    #   recipients: ["admin@example.com"]
+    #   subject: "ETL Pipeline: {{pipeline_name}} Succeeded"
+  on_failure:
+    - type: "log"
+    # - type: "email"
+    #   recipients: ["alerts@example.com"]
+    #   subject: "ETL Pipeline: {{pipeline_name}} Failed"
+
+# Logging configuration
+logging:
+  level: "INFO" # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  log_file_path: "logs/etl_pipeline.log" # Optional: if writing to a file as well
+  # For Databricks, logs are typically captured by the cluster logging.
+  # This can be used for local testing or specific file logging needs.
