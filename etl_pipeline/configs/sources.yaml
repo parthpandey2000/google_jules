@@ -1,0 +1,118 @@
+# Configuration for source tables
+# This file defines the source tables for the ETL pipeline, including their location in the Databricks catalog
+# and the data quality checks to be performed on them.
+
+sources:
+  - name: astrid_disease_prevalence
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "astrid_disease_prevalence"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "age_class", "sex", "disease_code"]
+
+  - name: icd10lookup
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "icd10lookup"
+    dq_checks:
+      - check: "not_null"
+        columns: ["dx10icd"]
+      - check: "unique"
+        columns: ["dx10icd"]
+
+  - name: generic_multim_1to3
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "generic_multim_1to3"
+    dq_checks:
+      - check: "not_null"
+        columns: ["generic_name"]
+
+  - name: ndc_multum_1to3
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "ndc_multum_1to3"
+    dq_checks:
+      - check: "not_null"
+        columns: ["generic_name"]
+
+  - name: hcpcs_multum_1to3
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "hcpcs_multum_1to3"
+    dq_checks:
+      - check: "not_null"
+        columns: ["generic_name"]
+
+  - name: astrid_demographics_general_population_counts
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "astrid_demographics_general_population_counts"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "payor", "category", "demographic"]
+
+  - name: astrid_comorbidities
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "astrid_comorbidities"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "age_class", "sex", "disease_code", "comorb_code"]
+
+  - name: astrid_incidence_rates
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "astrid_incidence_rates"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "age_class", "sex", "disease_code"]
+
+  - name: astrid_demographics_disease_population_counts
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "astrid_demographics_disease_population_counts"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "disease_code", "payor", "sex", "category", "demographic"]
+
+  - name: astrid_disease_incidence
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "astrid_disease_incidence"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "age_class", "sex", "disease_code"]
+
+  - name: astrid_hcru_disease_population
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "astrid_hcru_disease_population"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "disease_code", "sex", "age_class"]
+
+  - name: astrid_hcru_general_population
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "astrid_hcru_general_population"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "sex", "age_class"]
+
+  - name: astrid_medications_disease_population
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "astrid_medications_disease_population"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "age_class", "sex", "disease_code", "medication"]
+
+  - name: astrid_medications_general_population
+    catalog: "dev_catalog"
+    schema: "staging"
+    table: "astrid_medications_general_population"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "age_class", "sex", "medication"]

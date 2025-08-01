@@ -1,0 +1,194 @@
+# Configuration for target tables
+# This file defines the target tables for the ETL pipeline, including their location,
+# storage details for external tables, and data quality checks to be performed after writing.
+
+targets:
+  - name: dim_datacut
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "dim_datacut"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/dim_datacut"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["datacut_key"]
+      - check: "unique"
+        columns: ["datacut_key"]
+
+  - name: dim_age_class
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "dim_age_class"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/dim_age_class"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["age_class_key"]
+      - check: "unique"
+        columns: ["age_class_key"]
+
+  - name: dim_disease
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "dim_disease"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/dim_disease"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["disease_code_key"]
+      - check: "unique"
+        columns: ["disease_code_key"]
+
+  - name: dim_medication
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "dim_medication"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/dim_medication"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["medication_key"]
+      - check: "unique"
+        columns: ["medication_key"]
+
+  - name: dim_payor
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "dim_payor"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/dim_payor"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["payor_key"]
+      - check: "unique"
+        columns: ["payor_key"]
+
+  - name: dim_region
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "dim_region"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/dim_region"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["region_key"]
+      - check: "unique"
+        columns: ["region_key"]
+
+  - name: dim_sex_category
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "dim_sex_category"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/dim_sex_category"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["sex_category_key"]
+      - check: "unique"
+        columns: ["sex_category_key"]
+
+  - name: dim_year
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "dim_year"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/dim_year"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year"]
+      - check: "unique"
+        columns: ["year"]
+
+  - name: dim_race
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "dim_race"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/dim_race"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["race_key"]
+      - check: "unique"
+        columns: ["race_key"]
+
+  - name: dim_ethnicity
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "dim_ethnicity"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/dim_ethnicity"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["ethnicity_key"]
+      - check: "unique"
+        columns: ["ethnicity_key"]
+
+  - name: fact_comorbidities
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "fact_comorbidities"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/fact_comorbidities"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "age_class_key", "sex_category_key", "race_key", "ethnicity_key", "disease_code_key", "comorbidity_code_key"]
+
+  - name: fact_demographics_disease_counts
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "fact_demographics_disease_counts"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/fact_demographics_disease_counts"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "disease_code_key", "payor_key", "sex_category_key", "demographic_category"]
+
+  - name: fact_demographics_general_counts
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "fact_demographics_general_counts"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/fact_demographics_general_counts"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "race_key", "ethnicity_key"]
+
+  - name: fact_disease
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "fact_disease"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/fact_disease"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "age_class_key", "sex_category_key", "disease_code_key"]
+
+  - name: fact_general_population
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "fact_general_population"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/fact_general_population"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "age_class_key", "sex_category_key", "race_key", "ethnicity_key"]
+
+  - name: fact_medication_disease_population
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "fact_medication_disease_population"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/fact_medication_disease_population"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "age_class_key", "sex_category_key", "race_key", "ethnicity_key", "disease_code_key", "medication_key"]
+
+  - name: fact_medication_general_population
+    catalog: "dev_catalog"
+    schema: "final"
+    table: "fact_medication_general_population"
+    path: "abfss://data@your_storage.dfs.core.windows.net/final/fact_medication_general_population"
+    write_mode: "overwrite"
+    dq_checks:
+      - check: "not_null"
+        columns: ["year", "age_class_key", "sex_category_key", "race_key", "ethnicity_key", "medication_key"]

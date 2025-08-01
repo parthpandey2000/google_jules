@@ -1,0 +1,333 @@
+# Configuration for transformations
+# This file defines the transformation logic for creating each target table.
+# Each transformation is defined by its target table, the source tables it depends on,
+# and the Spark SQL query that performs the transformation.
+
+transformations:
+  - target_table: dim_datacut
+    source_tables: [ "astrid_disease_prevalence" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+        monotonically_increasing_id() as datacut_key,
+        datacut
+      FROM (
+        SELECT DISTINCT datacut FROM astrid_disease_prevalence
+      )
+
+  - target_table: dim_age_class
+    source_tables: [ "astrid_disease_prevalence" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+        monotonically_increasing_id() as age_class_key,
+        age_class
+      FROM (
+        SELECT DISTINCT age_class FROM astrid_disease_prevalence
+      )
+
+  - target_table: dim_disease
+    source_tables: [ "icd10lookup" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+        monotonically_increasing_id() as disease_code_key,
+        dx10icd as disease_code,
+        description as disease_description,
+        COALESCE(categoryNum, -1) as category_code,
+        COALESCE(categoryDescription, 'Undefined Category') as category_description,
+        COALESCE(chapterNum, -1) as chapter_code,
+        COALESCE(chapterDescription, 'Undefined Chapter') as chapter_description,
+        CONCAT_WS(' - ', dx10icd, description) as disease_code_desc,
+        CONCAT_WS(' - ', categoryNum, COALESCE(categoryDescription, 'Undefined Category')) as category_code_desc,
+        CONCAT_WS(' - ', chapterNum, COALESCE(chapterDescription, 'Undefined Chapter')) as chapter_code_desc
+      FROM icd10lookup
+
+  - target_table: dim_medication
+    source_tables: [ "ndc_multum_1to3", "hcpcs_multum_1to3", "generic_multim_1to3" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+        monotonically_increasing_id() as medication_key,
+        meds.generic_name as medication,
+        d.multum_level1_name,
+        d.multum_level2_name,
+        d.multum_level3_name
+      FROM (
+        SELECT DISTINCT UPPER(generic_name) AS generic_name FROM ndc_multum_1to3
+        UNION
+        SELECT DISTINCT UPPER(generic_name) FROM hcpcs_multum_1to3
+      ) meds
+      LEFT JOIN generic_multim_1to3 d ON UPPER(meds.generic_name) = UPPER(d.generic_name)
+
+  - target_table: dim_payor
+    source_tables: [ "astrid_demographics_general_population_counts" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+        monotonically_increasing_id() as payor_key,
+        payor
+      FROM (
+        SELECT DISTINCT payor FROM astrid_demographics_general_population_counts
+      )
+
+  - target_table: dim_region
+    source_tables: [ "astrid_demographics_general_population_counts" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+        monotonically_increasing_id() as region_key,
+        demographic as region
+      FROM (
+          SELECT DISTINCT demographic
+          FROM astrid_demographics_general_population_counts
+          WHERE category = 'Region'
+      )
+
+  - target_table: dim_sex_category
+    source_tables: [ "astrid_disease_prevalence" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+        monotonically_increasing_id() as sex_category_key,
+        sex
+      FROM (
+        SELECT DISTINCT sex FROM astrid_disease_prevalence
+      )
+
+  - target_table: dim_year
+    source_tables: [ "astrid_disease_prevalence" ]
+    transformation_type: "spark_sql"
+    logic: |
+      WITH year_min_max AS (
+        SELECT
+          MIN(year) as min_year,
+          MAX(year) as max_year
+        FROM astrid_disease_prevalence
+      )
+      SELECT
+        year,
+        CASE WHEN year = (SELECT max_year FROM year_min_max) THEN 1 ELSE 0 END as max_year_flag,
+        CASE WHEN year = (SELECT min_year FROM year_min_max) THEN 1 ELSE 0 END as min_year_flag
+      FROM (
+        SELECT DISTINCT year FROM astrid_disease_prevalence
+      )
+
+  - target_table: dim_race
+    source_tables: [ "astrid_disease_prevalence" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+        monotonically_increasing_id() as race_key,
+        race
+      FROM (
+        SELECT DISTINCT race FROM astrid_disease_prevalence
+      )
+
+  - target_table: dim_ethnicity
+    source_tables: [ "astrid_disease_prevalence" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+        monotonically_increasing_id() as ethnicity_key,
+        ethnicity
+      FROM (
+        SELECT DISTINCT ethnicity FROM astrid_disease_prevalence
+      )
+
+  - target_table: fact_comorbidities
+    source_tables: [ "astrid_comorbidities", "dim_age_class", "dim_sex_category", "dim_race", "dim_ethnicity", "dim_disease", "astrid_incidence_rates" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+          f.year AS year,
+          a.age_class_key AS age_class_key,
+          s.sex_category_key AS sex_category_key,
+          r.race_key AS race_key,
+          e.ethnicity_key AS ethnicity_key,
+          d.disease_code_key AS disease_code_key,
+          c.disease_code_key AS comorbidity_code_key,
+          SUM(f.num) AS comorbidity_population,
+          SUM(i.num) AS comorbidity_incidence_population,
+          SUM(i.incidence_rate_per100kPY) AS comorbidity_incidence_rate_per100kPY
+      FROM astrid_comorbidities f
+      LEFT JOIN dim_age_class a ON f.age_class = a.age_class
+      LEFT JOIN dim_sex_category s ON f.sex = s.sex
+      LEFT JOIN dim_race r ON f.race = r.race
+      LEFT JOIN dim_ethnicity e ON f.ethnicity = e.ethnicity
+      LEFT JOIN dim_disease d ON f.disease_code = d.disease_code
+      LEFT JOIN dim_disease c ON f.comorb_code = c.disease_code
+      LEFT JOIN astrid_incidence_rates i
+        ON i.year = f.year
+        AND i.age_class = f.age_class
+        AND i.sex = f.sex
+        AND i.disease_code = f.disease_code
+        AND i.comorb_code = f.comorb_code
+      WHERE f.num <> 0 AND f.age_class <> 'All ages' AND f.sex <> 'Both sexes'
+      GROUP BY
+          f.year,
+          a.age_class_key,
+          s.sex_category_key,
+          r.race_key,
+          e.ethnicity_key,
+          d.disease_code_key,
+          c.disease_code_key
+
+  - target_table: fact_demographics_disease_counts
+    source_tables: [ "astrid_demographics_disease_population_counts", "dim_disease", "dim_payor", "dim_sex_category", "dim_region", "dim_age_class" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+        f.year AS year,
+        d.disease_code_key AS disease_code_key,
+        p.payor_key AS payor_key,
+        s.sex_category_key AS sex_category_key,
+        CASE WHEN f.category = 'Region' THEN r.region_key ELSE -1 END AS region_key,
+        CASE WHEN f.category = 'Age' THEN a.age_class_key ELSE -1 END AS age_class_key,
+        f.category AS demographic_category,
+        f.N_patients AS n_patients
+      FROM astrid_demographics_disease_population_counts f
+      LEFT JOIN dim_disease d ON d.disease_code = f.disease_code
+      LEFT JOIN dim_payor p ON p.payor = f.payor
+      LEFT JOIN dim_sex_category s ON s.sex = f.sex
+      LEFT JOIN dim_region r ON r.region = f.demographic AND f.category = 'Region'
+      LEFT JOIN dim_age_class a ON a.age_class = f.demographic AND f.category = 'Age'
+
+  - target_table: fact_demographics_general_counts
+    source_tables: [ "astrid_demographics_general_population_counts", "dim_race", "dim_ethnicity", "dim_region", "dim_age_class" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+        f.year AS year,
+        r.race_key AS race_key,
+        e.ethnicity_key AS ethnicity_key,
+        CASE WHEN f.category = 'Region' THEN rg.region_key ELSE -1 END AS region_key,
+        CASE WHEN f.category = 'Age' THEN a.age_class_key ELSE -1 END AS age_class_key,
+        f.category AS demographic_category,
+        f.N_patients AS n_patients
+      FROM astrid_demographics_general_population_counts f
+      LEFT JOIN dim_race r ON r.race = f.race
+      LEFT JOIN dim_ethnicity e ON e.ethnicity = f.ethnicity
+      LEFT JOIN dim_region rg ON rg.region = f.demographic AND f.category = 'Region'
+      LEFT JOIN dim_age_class a ON a.age_class = f.demographic AND f.category = 'Age'
+
+  - target_table: fact_disease
+    source_tables: [ "astrid_disease_prevalence", "dim_age_class", "dim_sex_category", "dim_disease", "astrid_disease_incidence", "astrid_incidence_rates", "astrid_comorbidities", "astrid_hcru_disease_population" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+          f.year AS year,
+          a.age_class_key AS age_class_key,
+          s.sex_category_key AS sex_category_key,
+          d.disease_code_key AS disease_code_key,
+          SUM(f.num) AS disease_population,
+          SUM(i.num) AS disease_incidence_population,
+          SUM(i.event_rate_per100kPY) AS event_rate_per100kPY,
+          SUM(ir.denom_timeatrisk) AS disease_population_denom_timeatrisk,
+          SUM(c.denom) AS disease_population_comorbidity_denom,
+          SUM(hcru.disease_specific_medical_costs) AS hcru_disease_total_costs,
+          SUM(hcru.disease_specific_inpatient_costs) AS hcru_disease_inpatient_costs,
+          SUM(hcru.disease_specific_outpatient_costs) AS hcru_disease_outpatient_costs,
+          SUM(hcru.disease_specific_emergency_costs) AS hcru_disease_emergency_costs,
+          SUM(hcru.disease_specific_num_encounters) AS hcru_disease_encounters,
+          SUM(hcru.disease_specific_num_inpatient_encounters) AS hcru_disease_inpatient_encounters,
+          SUM(hcru.disease_specific_num_outpatient_encounters) AS hcru_disease_oupatient_encounters,
+          SUM(hcru.disease_specific_num_emergency_encounters) AS hcru_disease_emergency_encounters,
+          SUM(hcru.N_patients) AS hcru_disease_n_patients
+      FROM astrid_disease_prevalence f
+      LEFT JOIN dim_age_class a ON a.age_class = f.age_class
+      LEFT JOIN dim_sex_category s ON s.sex = f.sex
+      LEFT JOIN dim_disease d ON d.disease_code = f.disease_code
+      LEFT JOIN astrid_disease_incidence i
+          ON i.year = f.year AND i.age_class = f.age_class AND i.sex = f.sex AND i.disease_code = f.disease_code
+      LEFT JOIN (
+          SELECT year, age_class, sex, disease_code, SUM(denom_timeatrisk) as denom_timeatrisk
+          FROM astrid_incidence_rates
+          GROUP BY year, age_class, sex, disease_code
+      ) ir ON ir.year = f.year AND ir.age_class = f.age_class AND ir.sex = f.sex AND ir.disease_code = f.disease_code
+      LEFT JOIN (
+          SELECT year, age_class, sex, disease_code, SUM(denom) as denom
+          FROM astrid_comorbidities
+          GROUP BY year, age_class, sex, disease_code
+      ) c ON c.year = f.year AND c.age_class = f.age_class AND c.sex = f.sex AND c.disease_code = f.disease_code
+      LEFT JOIN astrid_hcru_disease_population hcru
+          ON hcru.year = f.year AND hcru.disease_code = f.disease_code AND hcru.sex = f.sex AND hcru.age_class = f.age_class
+      WHERE f.age_class <> 'All ages' AND f.sex <> 'Both sexes'
+      GROUP BY f.year, a.age_class_key, s.sex_category_key, d.disease_code_key
+
+  - target_table: fact_general_population
+    source_tables: [ "astrid_disease_prevalence", "dim_age_class", "dim_sex_category", "dim_race", "dim_ethnicity", "astrid_disease_incidence", "astrid_hcru_general_population" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+          f.year AS year,
+          a.age_class_key AS age_class_key,
+          s.sex_category_key AS sex_category_key,
+          r.race_key AS race_key,
+          e.ethnicity_key AS ethnicity_key,
+          SUM(f.denom) AS general_population,
+          SUM(i.denom_timeatrisk) AS general_population_timeatrisk,
+          SUM(hcru.overall_medical_costs) AS hcru_total_costs,
+          SUM(hcru.overall_inpatient_costs) AS hcru_inpatient_costs,
+          SUM(hcru.overall_outpatient_costs) AS hcru_outpatient_costs,
+          SUM(hcru.overall_drug_costs) AS hcru_drug_costs,
+          SUM(hcru.overall_er_costs) AS hcru_emergency_costs,
+          SUM(hcru.overall_num_encounters) AS hcru_encounters,
+          SUM(hcru.overall_num_inpatient_encounters) AS hcru_inpatient_encounters,
+          SUM(hcru.overall_num_outpatient_encounters) AS hcru_outpatient_encounters,
+          SUM(hcru.overall_num_emergency_encounters) AS hcru_emergency_encounters,
+          SUM(hcru.overall_num_prescriptions) AS hcru_prescriptions,
+          SUM(hcru.N_patients) AS hcru_n_patients
+      FROM astrid_disease_prevalence f
+      LEFT JOIN dim_age_class a ON a.age_class = f.age_class
+      LEFT JOIN dim_sex_category s ON s.sex = f.sex
+      LEFT JOIN dim_race r ON r.race = f.race
+      LEFT JOIN dim_ethnicity e ON e.ethnicity = f.ethnicity
+      LEFT JOIN astrid_disease_incidence i ON f.age_class = i.age_class AND f.sex = i.sex AND f.year = i.year
+      LEFT JOIN astrid_hcru_general_population hcru ON f.year = hcru.year AND f.sex = hcru.sex AND f.age_class = hcru.age_class
+      WHERE f.age_class <> 'All ages' AND f.sex <> 'Both sexes'
+      GROUP BY f.year, a.age_class_key, s.sex_category_key, r.race_key, e.ethnicity_key
+
+  - target_table: fact_medication_disease_population
+    source_tables: [ "astrid_medications_disease_population", "dim_age_class", "dim_sex_category", "dim_race", "dim_ethnicity", "dim_disease", "dim_medication" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+          f.year AS year,
+          a.age_class_key AS age_class_key,
+          s.sex_category_key AS sex_category_key,
+          r.race_key AS race_key,
+          e.ethnicity_key AS ethnicity_key,
+          d.disease_code_key AS disease_code_key,
+          m.medication_key AS medication_key,
+          SUM(f.num) AS medication_disease_population
+      FROM astrid_medications_disease_population f
+      LEFT JOIN dim_age_class a ON a.age_class = f.age_class
+      LEFT JOIN dim_sex_category s ON s.sex = f.sex
+      LEFT JOIN dim_race r ON r.race = f.race
+      LEFT JOIN dim_ethnicity e ON e.ethnicity = f.ethnicity
+      LEFT JOIN dim_disease d ON d.disease_code = f.disease_code
+      LEFT JOIN dim_medication m ON UPPER(m.medication) = UPPER(f.medication)
+      WHERE f.num <> 0 AND f.sex <> 'Both sexes' AND f.age_class <> 'All ages'
+      GROUP BY f.year, a.age_class_key, s.sex_category_key, r.race_key, e.ethnicity_key, d.disease_code_key, m.medication_key
+
+  - target_table: fact_medication_general_population
+    source_tables: [ "astrid_medications_general_population", "dim_age_class", "dim_sex_category", "dim_race", "dim_ethnicity", "dim_medication" ]
+    transformation_type: "spark_sql"
+    logic: |
+      SELECT
+          f.year AS year,
+          a.age_class_key AS age_class_key,
+          s.sex_category_key AS sex_category_key,
+          r.race_key AS race_key,
+          e.ethnicity_key AS ethnicity_key,
+          m.medication_key AS medication_key,
+          SUM(f.num) AS medication_general_population
+      FROM astrid_medications_general_population f
+      LEFT JOIN dim_age_class a ON a.age_class = f.age_class
+      LEFT JOIN dim_sex_category s ON s.sex = f.sex
+      LEFT JOIN dim_race r ON r.race = f.race
+      LEFT JOIN dim_ethnicity e ON e.ethnicity = f.ethnicity
+      LEFT JOIN dim_medication m ON UPPER(m.medication) = UPPER(f.medication)
+      WHERE f.age_class <> 'All ages' AND f.sex <> 'Both sexes'
+      GROUP BY f.year, a.age_class_key, s.sex_category_key, r.race_key, e.ethnicity_key, m.medication_key
