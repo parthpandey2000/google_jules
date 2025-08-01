@@ -1,4 +1,5 @@
-from pyspark.sql import SparkSession
+import importlib
+from pyspark.sql import SparkSession, DataFrame
 from etl_pipeline.src.logger import get_logger
 
 logger = get_logger(__name__)
@@ -13,31 +14,20 @@ def get_config_for_table(table_name: str, configs: list) -> dict:
 def run_transformation(spark: SparkSession, transform_config: dict, sources_configs: list, targets_configs: list):
     """
     Runs a single transformation to create a target table.
-
-    Args:
-        spark (SparkSession): The active Spark session.
-        transform_config (dict): The configuration for the transformation to run.
-        sources_configs (list): The list of all source configurations.
-        targets_configs (list): The list of all target configurations.
-
-    Raises:
-        Exception: If any step in the transformation fails.
+    Supports both 'spark_sql' and 'pyspark' transformation types.
     """
     target_table_name = transform_config['target_table']
-    logger.info(f"Starting transformation for target table: {target_table_name}")
+    transform_type = transform_config.get('transformation_type', 'spark_sql')
+    logger.info(f"Starting transformation for target table: {target_table_name} (type: {transform_type})")
 
-    # --- 1. Load source tables and register them as temp views ---
     source_table_names = transform_config['source_tables']
     logger.info(f"Required source tables: {source_table_names}")
 
+    source_dfs = {}
     for source_name in source_table_names:
-        # A source for a transformation can be a raw source or another target (dependency)
         source_config = get_config_for_table(source_name, sources_configs)
-        is_target_dependency = False
         if source_config is None:
             source_config = get_config_for_table(source_name, targets_configs)
-            if source_config is not None:
-                is_target_dependency = True
 
         if source_config is None:
             raise Exception(f"Configuration not found for source table: {source_name}")
@@ -48,25 +38,51 @@ def run_transformation(spark: SparkSession, transform_config: dict, sources_conf
         full_table_name = f"{catalog}.{schema}.{table}"
 
         try:
-            logger.info(f"Reading source: {full_table_name} and creating temp view: {source_name}")
+            logger.info(f"Reading source: {full_table_name}")
             df = spark.read.table(full_table_name)
-            df.createOrReplaceTempView(source_name)
+            source_dfs[source_name] = df
         except Exception as e:
-            logger.error(f"Failed to read or register temp view for {full_table_name}. Error: {e}")
+            logger.error(f"Failed to read source table {full_table_name}. Error: {e}")
             raise
 
-    # --- 2. Execute the transformation logic ---
-    sql_logic = transform_config['logic']
-    logger.info(f"Executing transformation SQL for {target_table_name}")
-    logger.debug(f"SQL Logic:\n{sql_logic}")
+    result_df = None
+    if transform_type == 'spark_sql':
+        try:
+            for name, df in source_dfs.items():
+                df.createOrReplaceTempView(name)
 
-    try:
-        result_df = spark.sql(sql_logic)
-    except Exception as e:
-        logger.error(f"Error executing transformation SQL for {target_table_name}. Error: {e}")
-        raise
+            sql_logic = transform_config['logic']
+            logger.info(f"Executing Spark SQL for {target_table_name}")
+            result_df = spark.sql(sql_logic)
+        except Exception as e:
+            logger.error(f"Error executing transformation SQL for {target_table_name}. Error: {e}")
+            raise
+        finally:
+            # Clean up temporary views to ensure isolation
+            logger.info("Cleaning up temporary views.")
+            for name in source_dfs.keys():
+                spark.catalog.dropTempView(name)
 
-    # --- 3. Write the result to the target table ---
+    elif transform_type == 'pyspark':
+        logic_path = transform_config['logic']
+        logger.info(f"Executing PySpark function '{logic_path}' for {target_table_name}")
+        try:
+            module_name, func_name = logic_path.rsplit('.', 1)
+            module = importlib.import_module(module_name)
+            transform_func = getattr(module, func_name)
+            result_df = transform_func(spark, source_dfs)
+        except (ImportError, AttributeError) as e:
+            logger.error(f"Could not import or find PySpark function '{logic_path}'. Error: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error executing PySpark function for {target_table_name}. Error: {e}")
+            raise
+    else:
+        raise ValueError(f"Unsupported transformation_type: '{transform_type}'")
+
+    if not isinstance(result_df, DataFrame):
+        raise Exception(f"Transformation for {target_table_name} did not return a PySpark DataFrame.")
+
     target_config = get_config_for_table(target_table_name, targets_configs)
     if not target_config:
         raise Exception(f"Target configuration not found for {target_table_name}")
@@ -81,14 +97,13 @@ def run_transformation(spark: SparkSession, transform_config: dict, sources_conf
     logger.info(f"Writing transformed data to {full_target_name} at path {target_path}")
 
     try:
-        # Create schema if it doesn't exist
         spark.sql(f"CREATE SCHEMA IF NOT EXISTS {target_catalog}.{target_schema}")
 
-        result_df.write \
-            .format("delta") \
-            .mode(write_mode) \
-            .option("path", target_path) \
-            .saveAsTable(full_target_name)
+        (result_df.write
+            .format("delta")
+            .mode(write_mode)
+            .option("path", target_path)
+            .saveAsTable(full_target_name))
 
         logger.info(f"Successfully wrote data to {full_target_name}")
     except Exception as e:

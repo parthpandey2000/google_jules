@@ -1,7 +1,7 @@
 # Configuration for transformations
 # This file defines the transformation logic for creating each target table.
 # Each transformation is defined by its target table, the source tables it depends on,
-# and the Spark SQL query that performs the transformation.
+# and the Spark SQL query or PySpark function that performs the transformation.
 
 transformations:
   - target_table: dim_datacut
@@ -28,20 +28,8 @@ transformations:
 
   - target_table: dim_disease
     source_tables: [ "icd10lookup" ]
-    transformation_type: "spark_sql"
-    logic: |
-      SELECT
-        monotonically_increasing_id() as disease_code_key,
-        dx10icd as disease_code,
-        description as disease_description,
-        COALESCE(categoryNum, -1) as category_code,
-        COALESCE(categoryDescription, 'Undefined Category') as category_description,
-        COALESCE(chapterNum, -1) as chapter_code,
-        COALESCE(chapterDescription, 'Undefined Chapter') as chapter_description,
-        CONCAT_WS(' - ', dx10icd, description) as disease_code_desc,
-        CONCAT_WS(' - ', categoryNum, COALESCE(categoryDescription, 'Undefined Category')) as category_code_desc,
-        CONCAT_WS(' - ', chapterNum, COALESCE(chapterDescription, 'Undefined Chapter')) as chapter_code_desc
-      FROM icd10lookup
+    transformation_type: "pyspark"
+    logic: "etl_pipeline.src.pyspark_transformations.transform_dim_disease"
 
   - target_table: dim_medication
     source_tables: [ "ndc_multum_1to3", "hcpcs_multum_1to3", "generic_multim_1to3" ]
@@ -137,41 +125,8 @@ transformations:
 
   - target_table: fact_comorbidities
     source_tables: [ "astrid_comorbidities", "dim_age_class", "dim_sex_category", "dim_race", "dim_ethnicity", "dim_disease", "astrid_incidence_rates" ]
-    transformation_type: "spark_sql"
-    logic: |
-      SELECT
-          f.year AS year,
-          a.age_class_key AS age_class_key,
-          s.sex_category_key AS sex_category_key,
-          r.race_key AS race_key,
-          e.ethnicity_key AS ethnicity_key,
-          d.disease_code_key AS disease_code_key,
-          c.disease_code_key AS comorbidity_code_key,
-          SUM(f.num) AS comorbidity_population,
-          SUM(i.num) AS comorbidity_incidence_population,
-          SUM(i.incidence_rate_per100kPY) AS comorbidity_incidence_rate_per100kPY
-      FROM astrid_comorbidities f
-      LEFT JOIN dim_age_class a ON f.age_class = a.age_class
-      LEFT JOIN dim_sex_category s ON f.sex = s.sex
-      LEFT JOIN dim_race r ON f.race = r.race
-      LEFT JOIN dim_ethnicity e ON f.ethnicity = e.ethnicity
-      LEFT JOIN dim_disease d ON f.disease_code = d.disease_code
-      LEFT JOIN dim_disease c ON f.comorb_code = c.disease_code
-      LEFT JOIN astrid_incidence_rates i
-        ON i.year = f.year
-        AND i.age_class = f.age_class
-        AND i.sex = f.sex
-        AND i.disease_code = f.disease_code
-        AND i.comorb_code = f.comorb_code
-      WHERE f.num <> 0 AND f.age_class <> 'All ages' AND f.sex <> 'Both sexes'
-      GROUP BY
-          f.year,
-          a.age_class_key,
-          s.sex_category_key,
-          r.race_key,
-          e.ethnicity_key,
-          d.disease_code_key,
-          c.disease_code_key
+    transformation_type: "pyspark"
+    logic: "etl_pipeline.src.pyspark_transformations.transform_fact_comorbidities"
 
   - target_table: fact_demographics_disease_counts
     source_tables: [ "astrid_demographics_disease_population_counts", "dim_disease", "dim_payor", "dim_sex_category", "dim_region", "dim_age_class" ]

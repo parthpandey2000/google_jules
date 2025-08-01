@@ -1,127 +1,99 @@
-# YAML-Configured PySpark ETL Pipeline Template
+# A Decoupled and Modular PySpark ETL Framework
 
-This project provides a reusable template for building ETL pipelines using PySpark on the Databricks platform. The pipeline is designed to be modular, configuration-driven, and easily orchestrated by tools like Azure Data Factory.
+This project is a comprehensive template for building robust, configuration-driven, and modular ETL pipelines using PySpark on the Databricks platform. It is architected around the core principle of separating the *what* from the *how*—the business logic of the ETL is completely decoupled from the Python code that executes it.
 
-The core philosophy is to keep the Python code generic and define all specific logic—including data sources, targets, transformations, and data quality rules—in YAML configuration files.
+This separation makes the framework highly reusable, maintainable, and easy to adapt for a wide variety of data processing tasks without modifying the core engine.
 
-## Features
+---
 
-- **Configuration-Driven:** All pipeline logic is managed through YAML files, making it easy to adapt for different ETL tasks without changing the core Python code.
-- **Modular Architecture:** The pipeline is broken down into distinct, reusable components for logging, utilities, data quality checks, and ETL transformations.
-- **Data Quality and Profiling:** Includes built-in steps for data profiling and running data quality (DQ) checks on both source and target tables.
-- **Databricks Integration:** Designed to read from and write to the Databricks catalog, creating external tables with data stored in ADLS.
-- **Orchestration-Friendly:** The main script is designed to be called by an orchestrator like Azure Data Factory, with support for running specific steps or tasks.
-- **Logging and Notifications:** Comprehensive logging and a placeholder for success/failure notifications are integrated.
+## 1. Core Principles
 
-## Project Structure
+The framework is built on a foundation of key software engineering principles to ensure reliability and scalability.
 
-```
-etl_pipeline/
-├── configs/
-│   ├── sources.yaml         # Defines source tables and source-side DQ checks.
-│   ├── targets.yaml         # Defines target tables, paths, and target-side DQ checks.
-│   └── transformations.yaml # Defines the SQL transformation logic for each target table.
-├── dq_checks/
-│   ├── source_dq.py         # Script to run DQ checks on source tables.
-│   └── target_dq.py         # Script to run DQ checks on target tables.
-├── src/
-│   ├── etl.py               # Core script that executes the main transformation logic.
-│   ├── logger.py            # Standardized logging utility.
-│   └── utils.py             # Common utilities (Spark session, config loading).
-├── main.py                  # Main orchestration script and entry point.
-├── .gitignore               # Standard Python gitignore.
-└── README.md                # This documentation file.
-```
+- **Configuration as Code:** The business logic of the pipeline is defined entirely in YAML files. The Python code is a generic engine that interprets these configurations.
+- **Modularity and Reusability:** The codebase is broken down into distinct components (orchestration, ETL, DQ, utils), each with a single responsibility.
+- **Orchestration-Ready:** The framework is designed to be driven by an external orchestrator like **Azure Data Factory** or Apache Airflow.
+- **Testability and Isolation:** The decoupled design ensures components can be unit-tested in isolation and that tasks do not interfere with one another.
 
-## Configuration
+---
 
-The entire pipeline is controlled by three YAML files in the `configs/` directory.
+## 2. Framework Components: A Deep Dive
 
-### `sources.yaml`
+### **The Orchestrator (`main.py`)**
+This script is the main entry point. It is responsible for:
+- **Parsing Command-Line Arguments:** Provides a CLI to run the whole pipeline or specific parts of it.
+- **Dependency Resolution:** It builds a dependency graph and performs a **topological sort** to determine the correct execution order for a full run.
+- **Executing the Pipeline:** It calls the other components (DQ and ETL) in the correctly determined order.
 
-Defines the data sources. Each source has a name, location (catalog, schema, table), and a list of data quality checks to perform.
+### **The ETL Engine (`src/etl.py`)**
+The `run_transformation` function is the workhorse of the pipeline. It supports two types of transformations:
+- **`spark_sql`**: Executes a SQL query.
+- **`pyspark`**: Dynamically executes a Python function from `src/pyspark_transformations.py`.
 
-**Example:**
-```yaml
-sources:
-  - name: icd10lookup
-    catalog: "dev_catalog"
-    schema: "staging"
-    table: "icd10lookup"
-    dq_checks:
-      - check: "not_null"
-        columns: ["dx10icd"]
-      - check: "unique"
-        columns: ["dx10icd"]
-```
+### **The Configuration Files (`configs/*.yaml`)**
+This is where all the business logic for a specific ETL pipeline is defined.
 
-### `targets.yaml`
+- **`sources.yaml`:** Defines the raw data sources and their pre-transformation DQ checks.
+- **`targets.yaml`:** Defines the final destination tables, their ADLS paths, and their post-transformation DQ checks.
+- **`transformations.yaml`:** The heart of the ETL logic, defining how to build each target table from its sources.
 
-Defines the target tables. Each target has a name, location, a path in ADLS for the external table data, a write mode, and a list of DQ checks to run after the data is written.
+---
 
-**Example:**
-```yaml
-targets:
-  - name: dim_disease
-    catalog: "dev_catalog"
-    schema: "final"
-    table: "dim_disease"
-    path: "abfss://data@your_storage.dfs.core.windows.net/final/dim_disease"
-    write_mode: "overwrite"
-    dq_checks:
-      - check: "not_null"
-        columns: ["disease_code_key"]
-```
+## 3. Adding New Transformations (The Easy Way)
 
-### `transformations.yaml`
+To simplify the process of adding new transformations and avoid manual YAML editing, you can use the **`add_transformation.py`** helper script.
 
-This is where the core business logic resides. Each entry defines how to create a target table, listing its source dependencies and the Spark SQL query to execute.
-
-**Example:**
-```yaml
-transformations:
-  - target_table: dim_disease
-    source_tables: [ "icd10lookup" ]
-    transformation_type: "spark_sql"
-    logic: |
-      SELECT
-        monotonically_increasing_id() as disease_code_key,
-        dx10icd as disease_code,
-        description as disease_description
-      FROM icd10lookup
-```
-
-## How to Run the Pipeline
-
-The `main.py` script acts as the orchestrator. You can run it from your terminal. Ensure you have the necessary dependencies (`pyspark`, `pyyaml`) installed.
-
-**Running the full pipeline:**
-
-This command will execute source DQ, all transformations in order, and target DQ for each transformed table.
-
+Run it from the `etl_pipeline` directory:
 ```bash
-python -m etl_pipeline.main --run-all
+python add_transformation.py
 ```
 
-**Running specific steps:**
+The script will launch an interactive session and guide you through the following steps:
+1.  **Enter Target Table Name:** The name of the new table you want to create (e.g., `dim_product`).
+2.  **Enter Source Tables:** A comma-separated list of source tables this new table depends on.
+3.  **Enter Transformation Type:** Choose between `sql` or `pyspark`.
 
-The modular design allows you to run individual parts of the pipeline, which is useful for development, debugging, or rerunning failed steps.
+Based on your input, the script will automatically:
+- **For SQL:** Prompt you to enter your SQL query and then update `transformations.yaml` with the new entry.
+- **For PySpark:** Update `transformations.yaml` and also append a boilerplate function to `src/pyspark_transformations.py`, ready for you to fill in your DataFrame logic.
 
-- **Run source DQ for a single table:**
+---
+
+## 4. Workflow and Execution
+
+The `main.py` script provides a flexible CLI for running the pipeline. It can be run from the `etl_pipeline` project root.
+
+### **Execution Modes**
+
+- **Run the entire pipeline in dependency-resolved order:**
   ```bash
-  python -m etl_pipeline.main --source-dq --table icd10lookup
+  python main.py --run-all
+  ```
+
+- **Run a user-defined queue of transformations:**
+  This powerful feature allows you to bypass the automatic dependency resolution and run a specific sequence of transformations. This is ideal for ad-hoc runs, debugging, or partial reloads. The tables will be processed in the exact order you provide.
+  ```bash
+  python main.py --queue "dim_year,dim_disease,fact_comorbidities"
   ```
 
 - **Run a single transformation:**
   ```bash
-  python -m etl_pipeline.main --transform --table dim_disease
+  python main.py --transform --table fact_comorbidities
   ```
 
-- **Run target DQ for a single table:**
+- **Run source DQ checks for a single table:**
   ```bash
-  python -m etl_pipeline.main --target-dq --table dim_disease
+  python main.py --source-dq --table icd10lookup
   ```
 
-## Notifications
+- **Run target DQ checks for a single table:**
+  ```bash
+  python main.py --target-dq --table dim_disease
+  ```
 
-The `src/utils.py` file contains a `notify()` function that is called on pipeline success or failure. This is currently a placeholder that logs to the console. To enable real notifications, modify this function to integrate with a service like Azure Logic Apps, SendGrid for email, or a webhook for Teams/Slack.
+---
+
+## 5. Customization and Extensibility
+
+- **Adding New DQ Checks:** To add a new check (e.g., `is_in_range`), open `dq_checks/dq_checker.py` and add a new `elif` block to the `_run_dq_checks` function.
+- **Notifications:** To enable real notifications, modify the `notify()` function in `src/utils.py` to integrate with a service like SendGrid or a Teams webhook.
